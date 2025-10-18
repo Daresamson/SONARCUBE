@@ -20,8 +20,9 @@ jobs:
           go-version: 1.21
 
       - name: Run Go tests
-        run: go test ./... -coverprofile=coverage.out
-        working-directory: backend
+        run: |
+          cd backend
+          go test ./... -coverprofile=coverage.out
 
       - name: SonarQube Scan - Backend
         uses: SonarSource/sonarqube-scan-action@v2
@@ -29,13 +30,13 @@ jobs:
           args: >
             -Dsonar.projectKey=backend
             -Dsonar.projectName=backend
+            -Dsonar.projectBaseDir=backend
             -Dsonar.sources=.
             -Dsonar.tests=.
             -Dsonar.go.coverage.reportPaths=coverage.out
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        working-directory: backend
 
       # ---------- Frontend (Flutter) ----------
       - name: Set up Flutter
@@ -44,12 +45,14 @@ jobs:
           flutter-version: '3.24.0'
 
       - name: Get Flutter dependencies
-        run: flutter pub get
-        working-directory: frontend
+        run: |
+          cd frontend
+          flutter pub get
 
       - name: Run Flutter tests
-        run: flutter test --coverage
-        working-directory: frontend
+        run: |
+          cd frontend
+          flutter test --coverage
 
       - name: SonarQube Scan - Frontend
         uses: SonarSource/sonarqube-scan-action@v2
@@ -57,10 +60,10 @@ jobs:
           args: >
             -Dsonar.projectKey=frontend
             -Dsonar.projectName=frontend
+            -Dsonar.projectBaseDir=frontend
             -Dsonar.sources=lib
             -Dsonar.tests=test
             -Dsonar.flutter.coverage.reportPaths=coverage/lcov.info
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        working-directory: frontend
