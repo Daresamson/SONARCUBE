@@ -1,0 +1,54 @@
+name: GoLang + Flutter SonarQube Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  sonar-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - name: Run Go Tests with Coverage
+        run: |
+          cd backend
+          go test ./... -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+          cd ..
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+
+      - name: Run Flutter Tests with Coverage
+        run: |
+          cd frontend
+          flutter pub get
+          flutter test --coverage
+          cd ..
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v2
+        env:
+          SONAR_HOST_URL: http://<EC2_PUBLIC_IP>:9000
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=multi-project
+            -Dsonar.projectName="GoLang + Flutter App"
+            -Dsonar.sources=.
+            -Dsonar.tests=.
+            -Dsonar.language=go,flutter
+            -Dsonar.exclusions=**/vendor/**,**/test/**
+            -Dsonar.go.coverage.reportPaths=backend/coverage.out
+            -Dsonar.dart.coverage.reportPaths=frontend/coverage/lcov.info
