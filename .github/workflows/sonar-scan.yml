@@ -1,53 +1,66 @@
-name: GoLang and Flutter SonarQube Scan
+name: GoLang + Flutter SonarQube Scan
 
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
-  sonar-analysis:
+  sonar:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
+      # ---------- Backend (Go) ----------
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: 1.21
 
-      - name: Run Go Tests with Coverage
-        run: |
-          cd backend
-          go test ./... -coverprofile=coverage.out
-          go tool cover -func=coverage.out
-          cd ..
+      - name: Run Go tests
+        run: go test ./... -coverprofile=coverage.out
+        working-directory: backend
 
+      - name: SonarQube Scan - Backend
+        uses: SonarSource/sonarqube-scan-action@v2
+        with:
+          args: >
+            -Dsonar.projectKey=backend
+            -Dsonar.projectName=backend
+            -Dsonar.sources=.
+            -Dsonar.tests=.
+            -Dsonar.go.coverage.reportPaths=coverage.out
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        working-directory: backend
+
+      # ---------- Frontend (Flutter) ----------
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.0'
 
-      - name: Run Flutter Tests with Coverage
-        run: |
-          cd frontend
-          flutter pub get
-          flutter test --coverage
-          cd ..
+      - name: Get Flutter dependencies
+        run: flutter pub get
+        working-directory: frontend
 
-      - name: Run SonarQube Scan
+      - name: Run Flutter tests
+        run: flutter test --coverage
+        working-directory: frontend
+
+      - name: SonarQube Scan - Frontend
         uses: SonarSource/sonarqube-scan-action@v2
-        env:
-          SONAR_HOST_URL: http://<EC2_PUBLIC_IP>:9000
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
-          args: |
-            -Dsonar.projectKey=multi-project
-            -Dsonar.projectName="GoLang and Flutter App"
-            -Dsonar.sources=.
-            -Dsonar.tests=.
-            -Dsonar.exclusions=**/vendor/**,**/test/**
-            -Dsonar.go.coverage.reportPaths=backend/coverage.out
-            -Dsonar.dart.coverage.reportPaths=frontend/coverage/lcov.info
+          args: >
+            -Dsonar.projectKey=frontend
+            -Dsonar.projectName=frontend
+            -Dsonar.sources=lib
+            -Dsonar.tests=test
+            -Dsonar.flutter.coverage.reportPaths=coverage/lcov.info
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        working-directory: frontend
